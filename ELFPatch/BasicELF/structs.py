@@ -1,12 +1,13 @@
 from construct import *
-from ELFPatch.BasicELF.types import *
+from .types import *
 
 #32 bit header struct
 
 Elf32_Ehdr = Struct(
         'e_ident' / Struct(
-            Const(b"\x7fELF"), #ELF Header
-            'EI_CLASS'/ Int8ul
+            "MAGIC"/Const(b"\x7fELF"), #ELF Header
+            'EI_CLASS'/ Int8ul,
+            Padding(11)
             ),
         'e_type' / Elf32_Half,
         'e_machine' / Elf32_Half,
@@ -37,8 +38,9 @@ Elf32_Phdr = Struct(
 
 Elf64_Ehdr = Struct(
         'e_ident' / Struct(
-            Const(b"\x7fELF"), #ELF Header
-            Padding(12)
+            "MAGIC"/Const(b"\x7fELF"), #ELF Header
+            'EI_CLASS'/ Int8ul,
+            Padding(11)
             ),
         'e_type' / Elf64_Half,
         'e_machine' / Elf64_Half,
@@ -66,3 +68,15 @@ Elf64_Phdr = Struct(
         'p_memsz' / Elf64_Xword,
         'p_align' / Elf64_Xword
         )
+
+Elf32_file = Struct(
+        'Elf_Ehdr' / Elf32_Ehdr,
+        Padding(this.Elf_Ehdr.e_phoff - Elf32_Ehdr.sizeof()),
+        'Elf_Phdr_table' / Array(this.Efl_Ehdr.e_phnum, Elf32_Phdr)
+        )
+
+Elf64_file = Struct(
+        'Elf_Ehdr' / Elf64_Ehdr, 
+        Padding(this.Elf_Ehdr.e_phoff - Elf64_Ehdr.sizeof()),
+        'Elf_Phdr_table' / Array(this.Elf_Ehdr.e_phnum, Elf64_Phdr)
+        )   

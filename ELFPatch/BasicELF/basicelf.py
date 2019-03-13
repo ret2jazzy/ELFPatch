@@ -1,4 +1,5 @@
-import ELFPatch.BasicELF.structs as ELFStructure
+from .elfstructs import *
+from . import structs as StructSkeletons 
 
 class BasicELF:
     def __init__(self, ELFFile):
@@ -7,8 +8,9 @@ class BasicELF:
         
         self._init_structs()
 
-        self.ELFHeader = self._ehdr.parse(self.rawelf)
-    
+        self.elf = self._structs.elf_file.parse(self.rawelf)
+
+
     def _init_structs(self):
         if self.rawelf[4] == 0x1: #4th byte identifies the ELF type
             self._bits = 32
@@ -17,9 +19,9 @@ class BasicELF:
         else:
             raise Exception("Not a valid 32/64 bit ELF")
 
+        self._structs = ELFStructs()
+
         if self._bits == 32:
-            self._ehdr = ELFStructure.Elf32_Ehdr
-            self._phdr = ELFStructure.Elf32_Phdr
+            self._structs.elf_file = StructSkeletons.Elf32_file
         else:
-            self._ehdr = ELFStructure.Elf64_Ehdr
-            self._phdr = ELFStructure.Elf64_Phdr
+            self._structs.elf_file = StructSkeletons.Elf64_file

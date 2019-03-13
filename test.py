@@ -1,6 +1,6 @@
-from ELFPatch.BasicELF.basicelf import BasicELF
+from ELFPatch.BasicELF import BasicELF
 
 f = BasicELF(b"./test")
-print(f.ELFHeader)
+print(f.elf)
 
 
