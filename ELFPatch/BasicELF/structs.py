@@ -7,7 +7,7 @@ Elf32_Ehdr = Struct(
         'e_ident' / Struct(
             "MAGIC"/Const(b"\x7fELF"), #ELF Header
             'EI_CLASS'/ Int8ul,
-            Padding(11)
+            "OTHER_STUFF"/ Array(11, Int8ul)
             ),
         'e_type' / Elf32_Half,
         'e_machine' / Elf32_Half,
@@ -40,7 +40,7 @@ Elf64_Ehdr = Struct(
         'e_ident' / Struct(
             "MAGIC"/Const(b"\x7fELF"), #ELF Header
             'EI_CLASS'/ Int8ul,
-            Padding(11)
+            "OTHER_STUFF"/ Array(11, Int8ul)
             ),
         'e_type' / Elf64_Half,
         'e_machine' / Elf64_Half,
@@ -70,13 +70,13 @@ Elf64_Phdr = Struct(
         )
 
 Elf32_file = Struct(
-        'Elf_Ehdr' / Elf32_Ehdr,
-        Padding(this.Elf_Ehdr.e_phoff - Elf32_Ehdr.sizeof()),
-        'Elf_Phdr_table' / Array(this.Efl_Ehdr.e_phnum, Elf32_Phdr)
+        'ehdr' / Elf32_Ehdr,
+        Padding(this.ehdr.e_phoff - Elf32_Ehdr.sizeof()),
+        'phdr_table' / Array(this.ehdr.e_phnum, Elf32_Phdr)
         )
 
 Elf64_file = Struct(
-        'Elf_Ehdr' / Elf64_Ehdr, 
-        Padding(this.Elf_Ehdr.e_phoff - Elf64_Ehdr.sizeof()),
-        'Elf_Phdr_table' / Array(this.Elf_Ehdr.e_phnum, Elf64_Phdr)
+        'ehdr' / Elf64_Ehdr, 
+        Padding(this.ehdr.e_phoff - Elf64_Ehdr.sizeof()),
+        'phdr_table' / Array(this.ehdr.e_phnum, Elf64_Phdr)
         )   

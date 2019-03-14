@@ -2,5 +2,6 @@
 
 int main()
 {
+    puts("It works");
     return 0;
 }
