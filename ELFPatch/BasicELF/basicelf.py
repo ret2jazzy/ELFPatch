@@ -21,7 +21,7 @@ class BasicELF:
         with open(filename, "wb") as f:
             f.write(self.rawelf)
 
-    def add_segment(self, content=b"", flags=PT_R|PT_W|PT_X, type=PT_LOAD, size=0x100, align=0x10):
+    def add_segment(self, content=b"", flags=PT_R|PT_W|PT_X, type=PT_LOAD, size=0x100, align=0x1000):
         if not self.phdr_fixed:
             self.phdr_fixed = True
             offset, virt_addr = self.add_segment(size=0x500, flags=PT_R|PT_W|PT_X)
