@@ -1,6 +1,11 @@
 from ELFPatch.BasicELF import BasicELF
 
 f = BasicELF(b"./test")
-f._update_raw_elf()
-f.add_segment()
-f.write_file("./outp")
+
+print("Adding new segment")
+
+f.add_segment(content=b"BBBB")
+
+print("New segment added at 0x{:x}".format(f.new_segments[0].address))
+
+f.write_file("./out")

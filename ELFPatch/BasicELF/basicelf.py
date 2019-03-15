@@ -14,7 +14,8 @@ class BasicELF:
         self.elf = self._structs.Elf_file.parse(self.rawelf)
 
         self.new_segments = []
-        self.phdr_fixed = False
+        self._phdr_fixed = False
+        self._new_phdr_offset = None
 
     def write_file(self, filename):
         self._update_raw_elf()
@@ -22,14 +23,11 @@ class BasicELF:
             f.write(self.rawelf)
 
     def add_segment(self, content=b"", flags=PT_R|PT_W|PT_X, type=PT_LOAD, size=0x100, align=0x1000):
-        if not self.phdr_fixed:
-            self.phdr_fixed = True
-            offset, virt_addr = self.add_segment(size=0x500, flags=PT_R|PT_W|PT_X)
-            self._fix_pdhr_entry(offset, virt_addr)
-            return
+        if not self._phdr_fixed:
+            self._phdr_fixed = True
+            self._fix_phdr()
 
-        raw_offset = self._find_usable_physical_offset()
-        virtual_addr = self._get_next_non_conflicting_virtual_address()
+        raw_offset, virtual_addr = self._generate_virtual_physical_offset_pair() 
 
         #Create a raw segment struct using the Container from construct
         segment_struct = Container(p_type=type, p_flags=flags, p_offset=raw_offset, p_vaddr=virtual_addr,p_paddr=virtual_addr, p_filesz=size, p_memsz=size, p_align=align)
@@ -42,6 +40,69 @@ class BasicELF:
         self.new_segments.append(segment_to_add)
 
         return raw_offset, virtual_addr 
+
+    #Basically due to the weirdness of the loader and the kernel, the kernel believes the PHDR entry in memory would be at "FIRST_LOAD_SEGMENT + e_phoff", forwarding it to the loader, which is totally bizzare... Like what's the point of PHDR entry in the PHDR itself then?
+    #Anyways, to cope with that, we try finding the smallest physical offset when loaded with the first segment itself would not conflict with any other segment's virtual addresses. It's a hacky approach but it works, so whatever...
+    #Essentially we increase the size of the first loaded segment, so it loads the whole binary and then we change the PHDR and shit....
+    #Even though the next segments might overlap with the first one (and overwrite), we only care that they don't overlap at the PHDR entry (and end up overwriting that)
+    def _fix_phdr(self):
+        #If it's not a dynamic binary, then we don't have the loader issue. We can just add a new segment for PHDR and load it there
+        if not self._is_dynamic():
+            offset, virt_addr = self.add_segment(size=0x500, flags=PT_R|PT_W|PT_X)
+            self._fix_pdhr_entry(offset, virt_addr)
+            return
+
+        physical_offset, virtual_addr = self._find_non_conflicting_address_pair_for_phdr()
+        size_for_load_segment = physical_offset + 0x500
+
+        #fix size for the first segment
+        for seg in self.elf.phdr_table:
+            #only for the first segment
+            if seg.p_type == PT_LOAD:
+                seg.p_filesz = size_for_load_segment
+                seg.p_memsz = size_for_load_segment
+                break
+        
+        self._fix_pdhr_entry(physical_offset, virtual_addr)
+
+        self._new_phdr_offset = physical_offset + 0x500 
+        
+    
+    #Basically look for the smallest no conflicting address pair which can all be loaded as a part of the first segment
+    def _find_non_conflicting_address_pair_for_phdr(self):
+        all_load_segs = [X for X in self.elf.phdr_table if X.p_type == PT_LOAD]
+    
+        #The closest physical offset we can use
+        closest_phy_offset = self._find_physical_offset()
+        #The base of the first LOAD segment
+        virtual_base = all_load_segs[0].p_vaddr 
+
+        #The minimum virtual address we would need to load upto to get the PHDR address in the first LOAD segment 
+        virtual_min_addr = virtual_base + closest_phy_offset
+
+        while self._is_conflicting_for_phdr(virtual_min_addr) or self._is_conflicting_for_phdr(virtual_min_addr+0x500):
+            #Just go to the next page boundry
+            virtual_min_addr = (virtual_min_addr & -0x1000) + 0x1000
+
+        return virtual_min_addr - virtual_base, virtual_min_addr
+
+    def _is_conflicting_for_phdr(self, address):
+        #all load segments except the first one
+        all_load_segs = [X for X in self.elf.phdr_table if X.p_type == PT_LOAD][1:]
+        address = address & -0x1000
+        for seg in all_load_segs:
+            #Just check if it's conflicting
+            if address >= seg.p_vaddr and address <= (seg.p_vaddr + seg.p_filesz):
+                return True
+
+        return False
+
+
+    def _is_dynamic(self):
+        for seg in self.elf.phdr_table:
+            if seg.p_type == PT_INTERP:
+                return True
+        return False
 
     #Basically move the phdr to the bottom to make more space
     def _fix_pdhr_entry(self, offset, virt_addr):
@@ -60,22 +121,30 @@ class BasicELF:
 
                 break
 
-    def _find_usable_physical_offset(self):
+    def _generate_virtual_physical_offset_pair(self):
+       physical_offset = self._find_physical_offset() 
+       virtual_offset = self._find_virtual_offset() + (physical_offset & (0xfff)) 
+       #The binary is mapped in chunks of 0x1000 (the chunk which includes our physical offset will be mapped), so the LSBs of physical address and virtual offset should match.
+       #So that out virt address falls in the right location when mapped as a whole chunk
+
+       return physical_offset, virtual_offset
+
+
+    def _find_physical_offset(self):
         if len(self.new_segments) == 0:
-            return (len(self.rawelf) & -0x1000) + 0x1000
+            if self._new_phdr_offset is not None:
+                return self._new_phdr_offset+0x10
+            return (len(self.rawelf) & -0x10) + 0x10
 
-        return (self.new_segments[-1].offset & -0x1000) + 0x1000
+        return ((self.new_segments[-1].offset + self.new_segments[-1].size) & -0x10) + 0x10
 
-    def _get_next_non_conflicting_virtual_address(self, permissions=PT_R|PT_W|PT_X):
-        current_max = 0x0
+    def _find_virtual_offset(self):
         PAGE_SIZE = 0x1000
 
-        max_addr = max(self.elf.phdr_table, key=(lambda entry: entry.p_vaddr + entry.p_memsz)) 
+        #Get max virtual address mapped
+        max_addr = max(self.elf.phdr_table, key=(lambda entry: (entry.p_vaddr + entry.p_memsz) if entry.p_type == PT_LOAD else 0)) 
 
-        if max_addr.p_flags == permissions:
-            return max_addr.p_vaddr + max_addr.p_memsz + 0x10
-
-        return (((((max_addr.p_vaddr + max_addr.p_memsz) & -max_addr.p_align) + max_addr.p_align) & -PAGE_SIZE) + PAGE_SIZE)
+        return (((max_addr.p_vaddr + max_addr.p_memsz) & -PAGE_SIZE) + PAGE_SIZE)
 
     def _init_structs(self):
         if self.rawelf[4] == 0x1: #4th byte identifies the ELF type
