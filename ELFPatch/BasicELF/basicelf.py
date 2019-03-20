@@ -22,12 +22,15 @@ class BasicELF:
         with open(filename, "wb") as f:
             f.write(self.rawelf)
 
-    def add_segment(self, content=b"", flags=PT_R|PT_W|PT_X, type=PT_LOAD, size=0x100, align=0x1000):
+    def add_segment(self, content=b"", flags=PT_R|PT_W|PT_X, type=PT_LOAD, size=0x100, align=0x1000, virtual_address=None):
         if not self._phdr_fixed:
             self._phdr_fixed = True
             self._fix_phdr()
 
-        raw_offset, virtual_addr = self._generate_virtual_physical_offset_pair() 
+        if virtual_address is None:
+            raw_offset, virtual_addr = self._generate_virtual_physical_offset_pair() 
+        else:
+            raw_offset, virtual_addr = self._generate_physical_offset_for_virtual(virtual_address), virtual_address
 
         #Create a raw segment struct using the Container from construct
         segment_struct = Container(p_type=type, p_flags=flags, p_offset=raw_offset, p_vaddr=virtual_addr,p_paddr=virtual_addr, p_filesz=size, p_memsz=size, p_align=align)
@@ -73,7 +76,7 @@ class BasicELF:
         all_load_segs = [X for X in self.elf.phdr_table if X.p_type == PT_LOAD]
     
         #The closest physical offset we can use
-        closest_phy_offset = self._find_physical_offset()
+        closest_phy_offset = self._generate_physical_offset()
         #The base of the first LOAD segment
         virtual_base = all_load_segs[0].p_vaddr 
 
@@ -85,6 +88,13 @@ class BasicELF:
             virtual_min_addr = (virtual_min_addr & -0x1000) + 0x1000
 
         return virtual_min_addr - virtual_base, virtual_min_addr
+
+    def _generate_physical_offset_for_virtual(self, virtual_address):
+        virtual_offset_needed = virtual_address & -0x1000
+
+        closest_physical = self._generate_physical_offset()
+
+        return closest_physical+virtual_offset_needed
 
     def _is_conflicting_for_phdr(self, address):
         #all load segments except the first one
@@ -122,15 +132,15 @@ class BasicELF:
                 break
 
     def _generate_virtual_physical_offset_pair(self):
-       physical_offset = self._find_physical_offset() 
-       virtual_offset = self._find_virtual_offset() + (physical_offset & (0xfff)) 
+       physical_offset = self._generate_physical_offset() 
+       virtual_offset = self._generate_virtual_offset() + (physical_offset & (0xfff)) 
        #The binary is mapped in chunks of 0x1000 (the chunk which includes our physical offset will be mapped), so the LSBs of physical address and virtual offset should match.
        #So that out virt address falls in the right location when mapped as a whole chunk
 
        return physical_offset, virtual_offset
 
 
-    def _find_physical_offset(self):
+    def _generate_physical_offset(self):
         if len(self.new_segments) == 0:
             if self._new_phdr_offset is not None:
                 return self._new_phdr_offset+0x10
@@ -138,7 +148,7 @@ class BasicELF:
 
         return ((self.new_segments[-1].offset + self.new_segments[-1].size) & -0x10) + 0x10
 
-    def _find_virtual_offset(self):
+    def _generate_virtual_offset(self):
         PAGE_SIZE = 0x1000
 
         #Get max virtual address mapped
