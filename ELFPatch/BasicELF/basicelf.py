@@ -22,7 +22,7 @@ class BasicELF:
         with open(filename, "wb") as f:
             f.write(self.rawelf)
 
-    def add_segment(self, content=b"", flags=PT_R|PT_W|PT_X, type=PT_LOAD, size=0x100, align=0x1000, virtual_address=None):
+    def add_segment(self, content=b"", flags=PT_R|PT_W|PT_X, type=PT_LOAD, size=None, align=0x1000, virtual_address=None):
         if not self._phdr_fixed:
             self._phdr_fixed = True
             self._fix_phdr()
@@ -31,6 +31,9 @@ class BasicELF:
             raw_offset, virtual_addr = self._generate_virtual_physical_offset_pair() 
         else:
             raw_offset, virtual_addr = self._generate_physical_offset_for_virtual(virtual_address), virtual_address
+
+        if size is None:
+            size = len(content)+0x10
 
         #Create a raw segment struct using the Container from construct
         segment_struct = Container(p_type=type, p_flags=flags, p_offset=raw_offset, p_vaddr=virtual_addr,p_paddr=virtual_addr, p_filesz=size, p_memsz=size, p_align=align)
