@@ -93,11 +93,16 @@ class BasicELF:
         return virtual_min_addr - virtual_base, virtual_min_addr
 
     def _generate_physical_offset_for_virtual(self, virtual_address):
-        virtual_offset_needed = virtual_address & -0x1000
+        virtual_offset_needed = virtual_address & 0xfff
 
         closest_physical = self._generate_physical_offset()
 
-        return closest_physical+virtual_offset_needed
+        if closest_physical&0xfff > virtual_offset_needed:
+            closest_physical = (closest_physical & -0x1000) + 0x1000 + virtual_offset_needed
+        else:
+            closest_physical = (closest_physical & -0x1000) + virtual_offset_needed
+
+        return closest_physical
 
     def _is_conflicting_for_phdr(self, address):
         #all load segments except the first one

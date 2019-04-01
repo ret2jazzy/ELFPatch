@@ -1,0 +1,3 @@
+bits 64
+org 0x100
+jmp 0x205
