@@ -45,7 +45,15 @@ class BasicELF:
         segment_to_add = Segment(raw_offset, virtual_addr, size, flags=flags, align=align, content=content)
         self.new_segments.append(segment_to_add)
 
-        return raw_offset, virtual_addr 
+        return segment_to_add
+
+    #Helper function to translate a virtual address to physical address
+    def virtual_to_physical(self, virtual_address):
+        for segment in self.elf.phdr_table:
+            if virtual_address >= segment.p_vaddr and virtual_address < segment.p_vaddr+segment.p_memsz:
+                address_offset = virtual_address - segment.p_vaddr
+                physical_offset = address_offset + segment.p_offset
+                return physical_offset
 
     #Basically due to the weirdness of the loader and the kernel, the kernel believes the PHDR entry in memory would be at "FIRST_LOAD_SEGMENT + e_phoff", forwarding it to the loader, which is totally bizzare... Like what's the point of PHDR entry in the PHDR itself then?
     #Anyways, to cope with that, we try finding the smallest physical offset when loaded with the first segment itself would not conflict with any other segment's virtual addresses. It's a hacky approach but it works, so whatever...
@@ -54,8 +62,8 @@ class BasicELF:
     def _fix_phdr(self):
         #If it's not a dynamic binary, then we don't have the loader issue. We can just add a new segment for PHDR and load it there
         if not self._is_dynamic():
-            offset, virt_addr = self.add_segment(size=0x500, flags=PT_R|PT_W|PT_X)
-            self._fix_pdhr_entry(offset, virt_addr)
+            new_phdr = self.add_segment(size=0x500, flags=PT_R|PT_W|PT_X)
+            self._fix_pdhr_entry(new_phdr.offset, new_phdr.virtual_address)
             return
 
         physical_offset, virtual_addr = self._find_non_conflicting_address_pair_for_phdr()

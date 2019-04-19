@@ -4,10 +4,10 @@ f = BasicELF(b"./test")
 
 print("Adding new segment")
 
-f.add_segment(content=b"CCCCCCCCCCCCCCCCCCCCCCCC", size=0x2000)
-f.add_segment(content=b"BBBBBBBBBBBBBBBBBBBBBBBB", virtual_address=0x1200000)
+new_segment = f.add_segment(size=0x2000)
 
-print("New segment added at 0x{:x}".format(f.new_segments[0].virtual_address))
-print("New segment added at 0x{:x}".format(f.new_segments[1].virtual_address))
+print("New segment at", hex(new_segment.virtual_address))
+
+new_segment.content = b"C"*0x100
 
 f.write_file("./out")
