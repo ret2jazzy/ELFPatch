@@ -13,7 +13,7 @@ class BasicELF:
 
         self.elf = self._structs.Elf_file.parse(self.rawelf)
 
-        self.new_segments = []
+        self._new_segments = []
         self._phdr_fixed = False
         self._new_phdr_offset = None
 
@@ -28,22 +28,22 @@ class BasicELF:
             self._fix_phdr()
 
         if virtual_address is None:
-            raw_offset, virtual_addr = self._generate_virtual_physical_offset_pair() 
+            physical_offset, virtual_addr = self._generate_virtual_physical_offset_pair() 
         else:
-            raw_offset, virtual_addr = self._generate_physical_offset_for_virtual(virtual_address), virtual_address
+            physical_offset, virtual_addr = self._generate_physical_offset_for_virtual(virtual_address), virtual_address
 
         if size is None:
             size = len(content)+0x10
 
         #Create a raw segment struct using the Container from construct
-        segment_struct = Container(p_type=type, p_flags=flags, p_offset=raw_offset, p_vaddr=virtual_addr,p_paddr=virtual_addr, p_filesz=size, p_memsz=size, p_align=align)
+        segment_struct = Container(p_type=type, p_flags=flags, p_offset=physical_offset, p_vaddr=virtual_addr,p_paddr=virtual_addr, p_filesz=size, p_memsz=size, p_align=align)
 
         self.elf.phdr_table.append(segment_struct)
         self.elf.ehdr.e_phnum += 1
 
         #Create a new segment class, but this time for segment addition
-        segment_to_add = Segment(raw_offset, virtual_addr, size, flags=flags, align=align, content=content)
-        self.new_segments.append(segment_to_add)
+        segment_to_add = Segment(physical_offset, virtual_addr, size, flags=flags, align=align, content=content)
+        self._new_segments.append(segment_to_add)
 
         return segment_to_add
 
@@ -63,7 +63,7 @@ class BasicELF:
         #If it's not a dynamic binary, then we don't have the loader issue. We can just add a new segment for PHDR and load it there
         if not self._is_dynamic():
             new_phdr = self.add_segment(size=0x500, flags=PT_R|PT_W|PT_X)
-            self._fix_pdhr_entry(new_phdr.offset, new_phdr.virtual_address)
+            self._fix_pdhr_entry(new_phdr.physical_offset, new_phdr.virtual_address)
             return
 
         physical_offset, virtual_addr = self._find_non_conflicting_address_pair_for_phdr()
@@ -157,12 +157,12 @@ class BasicELF:
 
 
     def _generate_physical_offset(self):
-        if len(self.new_segments) == 0:
+        if len(self._new_segments) == 0:
             if self._new_phdr_offset is not None:
                 return self._new_phdr_offset+0x10
             return (len(self.rawelf) & -0x10) + 0x10
 
-        return ((self.new_segments[-1].offset + self.new_segments[-1].size) & -0x10) + 0x10
+        return ((self._new_segments[-1].offset + self._new_segments[-1].size) & -0x10) + 0x10
 
     def _generate_virtual_offset(self):
         PAGE_SIZE = 0x1000
@@ -196,13 +196,13 @@ class BasicELF:
         self.rawelf[0:self._structs.Elf_ehdr.sizeof()] = self._structs.Elf_ehdr.build(self.elf.ehdr) 
 
         #add the new updated LOAD segment's data in the ELF
-        for segment in self.new_segments:
-            segment_end = (segment.offset + segment.size)
+        for segment in self._new_segments:
+            segment_end = (segment.physical_offset + segment.size)
             if segment_end > len(self.rawelf):
                 self.rawelf += b"\x00" * (segment_end - len(self.rawelf) + 1)
-                self.rawelf[segment.offset:segment.offset+len(segment.content)] = segment.content
+                self.rawelf[segment.physical_offset:segment.physical_offset+len(segment.content)] = segment.content
 
-        self.new_segments = []
+        self._new_segments = []
 
         #get location of Phdr table (segement table) and size
         phdr_offset = self.elf.ehdr.e_phoff 

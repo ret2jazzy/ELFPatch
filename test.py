@@ -8,6 +8,6 @@ new_segment = f.add_segment(size=0x2000)
 
 print("New segment at", hex(new_segment.virtual_address))
 
-new_segment.content = b"C"*0x100
+new_segment.update_content(b"C"*0x100)
 
 f.write_file("./out")
