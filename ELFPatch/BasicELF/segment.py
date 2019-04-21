@@ -12,7 +12,7 @@ class Segment:
         self.align = align
         self.content = bytearray(content)
     
-    def update_content(self, content, start_offset=None, end_offset=None):
+    def update_data(self, content, start_offset=None, end_offset=None):
         """
         Update content between start and end offset
         if None are provided, update from 0

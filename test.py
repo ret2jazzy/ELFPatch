@@ -3,18 +3,25 @@ from ELFPatch.BasicELF import constants
 
 f = ELFPatch(b"./test")
 
-print("Adding new chunks")
+new_patch = f.new_patch(virtual_address=0x4004f2, size=0x100, prepend_original_instructions=False)
 
-new_chunk = f.new_chunk(size=0x20)
-new_chunk_2 = f.new_chunk(size=0x20, flags=constants.PT_R)
-new_chunk_3 = f.new_chunk(size=0x20)
+# mov rax, 0x1
+# mov rdi, 0x1
+# jmp get_str
 
-new_chunk.update_content(b"AAAA")
-new_chunk_2.update_content(b"BBBB")
-new_chunk_2.update_content(b"CCCC")
+# make_syscall:
+# pop rsi
+# mov rdx, 12
+# syscall
+# jmp end
 
-print("New chunk at", hex(new_chunk.virtual_address))
-print("New chunk at", hex(new_chunk_2.virtual_address))
-print("New chunk at", hex(new_chunk_3.virtual_address))
+# get_str:
+# call make_syscall
+# .string "SICED PATCH\n"
 
+# end:
+
+new_patch.update_patch(b"\x48\xC7\xC0\x01\x00\x00\x00\x48\xC7\xC7\x01\x00\x00\x00\xEB\x0C\x5E\x48\xC7\xC2\x0C\x00\x00\x00\x0F\x05\xEB\x12\xE8\xEF\xFF\xFF\xFF\x53\x49\x43\x45\x44\x20\x50\x41\x54\x43\x48\x0A\x00")
+
+print("New Patch at", hex(new_patch.chunk.virtual_address))
 f.write_file("./out")

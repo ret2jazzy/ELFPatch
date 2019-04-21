@@ -13,8 +13,8 @@ class Chunk:
 
         self.virtual_address = segment.virtual_address + start_offset
 
-    def update_content(self, content):
+    def update_data(self, content):
         if len(content) > self.size:
             raise Exception("Content larger than size")
-        self._segment.update_content(content, start_offset=self._start_offset)
+        self._segment.update_data(content, start_offset=self._start_offset)
 
