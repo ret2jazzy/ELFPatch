@@ -1,13 +1,20 @@
-from ELFPatch.BasicELF import BasicELF
+from ELFPatch import ELFPatch 
+from ELFPatch.BasicELF import constants
 
-f = BasicELF(b"./test")
+f = ELFPatch(b"./test")
 
-print("Adding new segment")
+print("Adding new chunks")
 
-new_segment = f.add_segment(size=0x2000)
+new_chunk = f.new_chunk(size=0x20)
+new_chunk_2 = f.new_chunk(size=0x20, flags=constants.PT_R)
+new_chunk_3 = f.new_chunk(size=0x20)
 
-print("New segment at", hex(new_segment.virtual_address))
+new_chunk.update_content(b"AAAA")
+new_chunk_2.update_content(b"BBBB")
+new_chunk_2.update_content(b"CCCC")
 
-new_segment.update_content(b"C"*0x100)
+print("New chunk at", hex(new_chunk.virtual_address))
+print("New chunk at", hex(new_chunk_2.virtual_address))
+print("New chunk at", hex(new_chunk_3.virtual_address))
 
 f.write_file("./out")
