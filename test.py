@@ -2,7 +2,7 @@ from ELFPatch import ELFPatch
 
 f = ELFPatch(b"./test")
 
-new_patch = f.new_patch(virtual_address=0x645, size=0x100, prepend_original_instructions=False)
+new_patch = f.new_patch(virtual_address=0x645, size=0x100, prepend_original_instructions=False, append_jump_back=True)
 
 new_patch.update_patch(f.assembler.assemble("""
 mov rax, 0x1
