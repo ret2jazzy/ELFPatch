@@ -1,5 +1,4 @@
 from ELFPatch import ELFPatch 
-from ELFPatch.BasicELF import constants
 
 f = ELFPatch(b"./test")
 
