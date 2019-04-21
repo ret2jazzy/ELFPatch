@@ -28,9 +28,3 @@ class Patch:
 
         self.chunk.update_data(content)
 
-
-
-
-
-
-

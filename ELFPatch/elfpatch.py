@@ -89,5 +89,3 @@ class ELFPatch(BasicELF):
             physical_offset_patch = self.virtual_to_physical(patch.virtual_address)
             self.rawelf[physical_offset_patch:physical_offset_patch+len(patch.patched_jump)] = patch.patched_jump
 
-
-

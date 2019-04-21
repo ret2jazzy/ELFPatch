@@ -29,7 +29,4 @@ class ChunkManager:
         self.left_size -= size
 
         return new_chunk
-            
-
-
 
