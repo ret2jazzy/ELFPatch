@@ -75,7 +75,7 @@ class BasicELF:
             #only for the first segment
             if seg.p_type == PT_LOAD:
                 seg.p_filesz = size_for_load_segment
-                seg.p_memsz = size_for_load_segment
+                seg.p_memsz = size_for_load_segment + 0x10
                 break
         
         self._fix_pdhr_entry(physical_offset, virtual_addr)

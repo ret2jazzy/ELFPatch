@@ -50,7 +50,7 @@ class ELFPatch(BasicELF):
         
         return managed_chunk.new_chunk(size=size, content=content, flags=flags) 
 
-    def new_patch(self, virtual_address, size=None, content=b"", append_jump_back=True, prepend_original_instructions=True):
+    def new_patch(self, virtual_address, size=None, content=b"", append_jump_back=True, append_original_instructions=True):
         if size is None:
             size = len(content)
 
@@ -59,6 +59,8 @@ class ELFPatch(BasicELF):
         chunk_for_patch = self.new_chunk(size+0x10) #Extra size cuz we might need to append a jump back
 
         jump_to_chunk = self.assembler.assemble("jmp {}".format(chunk_for_patch.virtual_address), offset=virtual_address)
+        from binascii import hexlify
+        print(f"new_patch: target=0x{virtual_address:x}, patch=0x{chunk_for_patch.virtual_address:x}, asm={hexlify(jump_to_chunk)}")
 
         size_of_jump = len(jump_to_chunk)
 
@@ -74,7 +76,7 @@ class ELFPatch(BasicELF):
         #Pad it
         jump_to_chunk += b"\x90"*(len(overwritten_instructions) - size_of_jump) 
 
-        new_patch = Patch(chunk_for_patch, virtual_address, patched_jump=jump_to_chunk, assembler=self.assembler, append_jump_back=append_jump_back, prepend_original_instructions=prepend_original_instructions, original_instructions=overwritten_instructions)
+        new_patch = Patch(chunk_for_patch, virtual_address, patched_jump=jump_to_chunk, assembler=self.assembler, append_jump_back=append_jump_back, append_original_instructions=append_original_instructions, original_instructions=overwritten_instructions)
 
         self.patches.append(new_patch)
         return new_patch

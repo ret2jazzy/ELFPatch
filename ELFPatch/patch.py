@@ -5,19 +5,19 @@ class Patch:
     By the time this is called, the jmp to the virtual address would already have been added in rawelf
     """
 
-    def __init__(self, chunk, virtual_address, patched_jump, assembler=None, append_jump_back=True, prepend_original_instructions=True, original_instructions=b""):
+    def __init__(self, chunk, virtual_address, patched_jump, assembler=None, append_jump_back=True, append_original_instructions=True, original_instructions=b""):
         self.chunk = chunk #The chunk for the patch
         self.virtual_address = virtual_address #The virtual address of where we are patching
         self.patched_jump = patched_jump #The jump instruction which will overwrite the instructions at the patch, Padded to NOPs to make sure we don't have invalid instructions
         self.append_jump_back = append_jump_back
-        self.prepend_original_instructions = prepend_original_instructions
+        self.append_original_instructions = append_original_instructions
         self.original_instructions = original_instructions #The original instructions being overwritten
         self.assembler = assembler #The asembler for current architecture
 
     def update_patch(self, content=b""):
-        #If we have to prepend the original instructions we overwrote
-        if self.prepend_original_instructions:
-            content = self.original_instructions + content
+        #If we have to append the original instructions we overwrote
+        if self.append_original_instructions:
+            content += self.original_instructions
 
         #If we have to append a jump back to the original code
         if self.append_jump_back:
