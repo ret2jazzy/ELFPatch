@@ -29,5 +29,5 @@ do_test() {
     # rm -f victim hook victim.patched
 }
 
-# do_test 32
+do_test 32
 do_test 64

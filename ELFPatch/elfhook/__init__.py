@@ -7,34 +7,6 @@ from elftools.elf.sections import SymbolTableSection
 
 from io import BytesIO
 
-_asm_regs_save = {
-    32: '''
-        pushf;
-        push ebp;
-        push esi;
-        push edi;
-        push edx;
-        push ecx;
-        push ebx;
-        push eax;
-        push esp;
-    ''',
-}
-_asm_regs_restore = {
-    32: '''
-        add esp, 4;
-        pop eax;
-        pop ebx;
-        pop ecx;
-        pop edx;
-        pop edi;
-        pop esi;
-        pop ebp;
-        popf;
-    ''',
-}
-_asm_before_entry = {}
-
 
 def hook_elf(target, hooks):
     """Install all hooks into the target.
