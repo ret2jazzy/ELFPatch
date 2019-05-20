@@ -14,7 +14,7 @@ class BasicElf:
     def raw_elf(self) -> bytes:
         ...
 
-    def add_segment(self, size, flags=PT_R | PT_W | PT_X, type=PT_LOAD, align=0x1000, virtual_address=None) -> Segment:
+    def new_segment(self, size, flags=PT_R | PT_W | PT_X, type=PT_LOAD, align=0x1000, virtual_address=None) -> Segment:
         ...
 
 
@@ -57,7 +57,7 @@ class ChunkElf(BasicElf):
     def __init__(self, file_or_path):
         ...
 
-    def add_chunk(self, size, flags=PT_R | PT_W | PT_X) -> Chunk:
+    def new_chunk(self, size, flags=PT_R | PT_W | PT_X) -> Chunk:
         ...
 
 
@@ -104,7 +104,7 @@ class PatchElf(ChunkElf):
     def __init__(self, file_or_path):
         ...
 
-    def add_patch(self, patchee, size) -> Patch:
+    def new_patch(self, patchee, size) -> Patch:
         ...
 
 
