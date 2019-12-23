@@ -59,8 +59,6 @@ class ELFPatch(BasicELF):
         chunk_for_patch = self.new_chunk(size+0x10) #Extra size cuz we might need to append a jump back
 
         jump_to_chunk = self.assembler.assemble("jmp {}".format(chunk_for_patch.virtual_address), offset=virtual_address)
-        from binascii import hexlify
-        print(f"new_patch: target=0x{virtual_address:x}, patch=0x{chunk_for_patch.virtual_address:x}, asm={hexlify(jump_to_chunk)}")
 
         size_of_jump = len(jump_to_chunk)
 
