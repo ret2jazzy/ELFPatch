@@ -3,6 +3,7 @@ from . import structs as StructSkeletons
 from .constants import *
 from construct import *
 from .segment import *
+from .utils import page_start, page_end
 
 class BasicELF:
     def __init__(self, ELFFile):
@@ -97,7 +98,7 @@ class BasicELF:
 
         while self._is_conflicting_for_phdr(virtual_min_addr) or self._is_conflicting_for_phdr(virtual_min_addr+0x500):
             #Just go to the next page boundry
-            virtual_min_addr = (virtual_min_addr & -0x1000) + 0x1000
+            virtual_min_addr = page_end(virtual_min_addr)
 
         return virtual_min_addr - virtual_base, virtual_min_addr
 
@@ -116,10 +117,11 @@ class BasicELF:
     def _is_conflicting_for_phdr(self, address):
         #all load segments except the first one
         all_load_segs = [X for X in self.elf.phdr_table if X.p_type == PT_LOAD][1:]
-        address = address & -0x1000
+        address = page_start(address)
         for seg in all_load_segs:
             #Just check if it's conflicting
-            if address >= seg.p_vaddr and address <= (seg.p_vaddr + seg.p_filesz):
+            #using page_start because the there can be case when p_vaddr can be > address in the middle of the page 
+            if address >= page_start(seg.p_vaddr) and address <= page_start(seg.p_vaddr + seg.p_memsz): 
                 return True
 
         return False
