@@ -16,22 +16,26 @@ class BasicELF:
 
         self._added_segments = []
         self._phdr_fixed = False
-        self._new_phdr_offset = None
+        # self._new_phdr_offset = None
 
     def write_file(self, filename):
         self._update_raw_elf()
         with open(filename, "wb") as f:
             f.write(self.rawelf)
 
-    def new_segment(self, content=b"", flags=PT_R|PT_W|PT_X, type=PT_LOAD, size=None, align=0x1000, virtual_address=None):
+    def new_segment(self, content=b"", flags=PT_R|PT_W|PT_X, type=PT_LOAD, size=None, align=0x1000, virtual_address=None, physical_off=None):
         if not self._phdr_fixed:
             self._phdr_fixed = True
             self._fix_phdr()
 
-        if virtual_address is None:
-            physical_offset, virtual_addr = self._generate_virtual_physical_offset_pair() 
-        else:
+        if physical_off is not None and virtual_address is not None:
+            physical_offset, virtual_addr = physical_off, virtual_address
+        elif virtual_address is None and physical_off is not None:
+            raise Exception("Cannot generate an segment with only physical offset")
+        elif virtual_address is not None:
             physical_offset, virtual_addr = self._generate_physical_offset_for_virtual(virtual_address), virtual_address
+        else:
+            physical_offset, virtual_addr = self._generate_virtual_physical_offset_pair() 
 
         if size is None:
             size = len(content)+0x10
@@ -60,28 +64,33 @@ class BasicELF:
     #Anyways, to cope with that, we try finding the smallest physical offset when loaded with the first segment itself would not conflict with any other segment's virtual addresses. It's a hacky approach but it works, so whatever...
     #Essentially we increase the size of the first loaded segment, so it loads the whole binary and then we change the PHDR and shit....
     #Even though the next segments might overlap with the first one (and overwrite), we only care that they don't overlap at the PHDR entry (and end up overwriting that)
+
+    #UPDATE: Figured out a better way to do it without the overlapping segments byjust creating another LOAD segment at the end and aligning the FIRST_LOAD_SEGMENT + e_phoff with the new load segment
     def _fix_phdr(self):
         #If it's not a dynamic binary, then we don't have the loader issue. We can just add a new segment for PHDR and load it there
         if not self._is_dynamic():
             #The reason I'm adding a new segment so that other segments after it don't end up taking the mem of the phdr
-            new_phdr = self.new_segment(size=0x500, flags=PT_R|PT_W|PT_X)
+            new_phdr = self.new_segment(size=0x1000, flags=PT_R|PT_W)
             self._fix_pdhr_entry(new_phdr.physical_offset, new_phdr.virtual_address)
             return
 
         physical_offset, virtual_addr = self._find_non_conflicting_address_pair_for_phdr()
-        size_for_load_segment = physical_offset + 0x500
+        #The hack commented out, figured out a better way
+        # size_for_load_segment = physical_offset + 0x500
 
         #fix size for the first segment
-        for seg in self.elf.phdr_table:
-            #only for the first segment
-            if seg.p_type == PT_LOAD:
-                seg.p_filesz = size_for_load_segment
-                seg.p_memsz = size_for_load_segment + 0x10
-                break
+#         for seg in self.elf.phdr_table:
+            # #only for the first segment
+            # if seg.p_type == PT_LOAD:
+                # seg.p_filesz = size_for_load_segment
+                # seg.p_memsz = size_for_load_segment + 0x10
+                # break
+
+        new_phdr = self.new_segment(size=0x1000, flags=PT_R|PT_W, virtual_address=virtual_addr, physical_off=physical_offset)
         
         self._fix_pdhr_entry(physical_offset, virtual_addr)
 
-        self._new_phdr_offset = physical_offset + 0x500 
+        # self._new_phdr_offset = physical_offset + 0x500 
         
     
     #Basically look for the smallest no conflicting address pair which can all be loaded as a part of the first segment
@@ -96,7 +105,7 @@ class BasicELF:
         #The minimum virtual address we would need to load upto to get the PHDR address in the first LOAD segment 
         virtual_min_addr = virtual_base + closest_phy_offset
 
-        while self._is_conflicting_for_phdr(virtual_min_addr) or self._is_conflicting_for_phdr(virtual_min_addr+0x500):
+        while self._is_conflicting_for_phdr(virtual_min_addr) or self._is_conflicting_for_phdr(virtual_min_addr+0x1000):
             #Just go to the next page boundry
             virtual_min_addr = page_end(virtual_min_addr)
 
@@ -161,8 +170,8 @@ class BasicELF:
 
     def _generate_physical_offset(self):
         if len(self._added_segments) == 0:
-            if self._new_phdr_offset is not None:
-                return self._new_phdr_offset+0x10
+            # if self._new_phdr_offset is not None:
+                # return self._new_phdr_offset+0x10
             return (len(self.rawelf) & -0x10) + 0x10
 
         return ((self._added_segments[-1].physical_offset + self._added_segments[-1].size) & -0x10) + 0x10
