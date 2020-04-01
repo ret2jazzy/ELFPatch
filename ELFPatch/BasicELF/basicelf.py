@@ -1,5 +1,6 @@
 from .elfstructs import *
 from . import structs as StructSkeletons 
+from .elfparse import ELFParse
 from .constants import *
 from construct import *
 from .segment import *
@@ -12,7 +13,8 @@ class BasicELF:
 
         self._init_structs()
 
-        self.elf = self._structs.Elf_file.parse(self.rawelf)
+        #Parse the ELF with the specific structs 
+        self.elf = ELFParse(self._structs, self.rawelf)
 
         self._added_segments = []
         self._phdr_fixed = False
@@ -31,6 +33,7 @@ class BasicELF:
         if physical_off is not None and virtual_address is not None:
             physical_offset, virtual_addr = physical_off, virtual_address
         elif virtual_address is None and physical_off is not None:
+            #TODO: Implement physical to virtual generation
             raise Exception("Cannot generate an segment with only physical offset")
         elif virtual_address is not None:
             physical_offset, virtual_addr = self._generate_physical_offset_for_virtual(virtual_address), virtual_address
@@ -66,6 +69,7 @@ class BasicELF:
     #Even though the next segments might overlap with the first one (and overwrite), we only care that they don't overlap at the PHDR entry (and end up overwriting that)
 
     #UPDATE: Figured out a better way to do it without the overlapping segments byjust creating another LOAD segment at the end and aligning the FIRST_LOAD_SEGMENT + e_phoff with the new load segment
+
     def _fix_phdr(self):
         #If it's not a dynamic binary, then we don't have the loader issue. We can just add a new segment for PHDR and load it there
         if not self._is_dynamic():
@@ -154,8 +158,8 @@ class BasicELF:
                 entry.p_vaddr = virt_addr 
                 entry.p_paddr = virt_addr 
                 #Set the size to a large-ish number
-                entry.p_memsz = 0x500
-                entry.p_filesz = 0x500
+                entry.p_memsz = 0x1000
+                entry.p_filesz = 0x1000
 
                 break
 
@@ -195,11 +199,9 @@ class BasicELF:
         self._structs = ELFStructs()
             #Initialize the structures used based on the bitsize so we don't have to look them up everytime
         if self._bits == 32:
-            self._structs.Elf_file = StructSkeletons.Elf32_file
             self._structs.Elf_ehdr = StructSkeletons.Elf32_Ehdr 
             self._structs.Elf_phdr = StructSkeletons.Elf32_Phdr 
         else:
-            self._structs.Elf_file = StructSkeletons.Elf64_file
             self._structs.Elf_ehdr = StructSkeletons.Elf64_Ehdr 
             self._structs.Elf_phdr = StructSkeletons.Elf64_Phdr 
 

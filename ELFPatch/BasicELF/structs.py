@@ -69,14 +69,4 @@ Elf64_Phdr = Struct(
         'p_align' / Elf64_Xword
         )
 
-Elf32_file = Struct(
-        'ehdr' / Elf32_Ehdr,
-        Padding(this.ehdr.e_phoff - Elf32_Ehdr.sizeof()),
-        'phdr_table' / Array(this.ehdr.e_phnum, Elf32_Phdr)
-        )
 
-Elf64_file = Struct(
-        'ehdr' / Elf64_Ehdr, 
-        Padding(this.ehdr.e_phoff - Elf64_Ehdr.sizeof()),
-        'phdr_table' / Array(this.ehdr.e_phnum, Elf64_Phdr)
-        )   
