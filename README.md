@@ -1,54 +1,25 @@
-# PatchElf Library
+# ELFPatch
+
+A library to manipulate and patch ELFs.  
 
 ## API
 
+Thanks to @LevitatingLion for writing this.
+
 ```python
-class PatchElf:
+class ELFPatch:
 
     def __init__(self, file_or_path):
         ...
 
-    @property
-    def raw_elf(self) -> bytes:
+    def new_chunk(self, size, prot='rwx', align=0x1) -> Chunk: #raw memory chunk for anything
         ...
 
-    @property
-    def lief(self) -> lief.ELF.Binary:
+    def new_patch(self, virtual_address, size=None, content=b"", append_jump_back=True, append_original_instructions=True) -> Patch:
         ...
 
-    def new_chunk(self, size, prot='rwx', align=0x1) -> Chunk:
+    def write_file(self, filename): #writes patched ELF to file
         ...
-
-    def new_patch(self, patchee, size) -> Patch:
-        ...
-
-
-class Chunk:
-
-    @property
-    def virtual_address(self) -> int:
-        ...
-
-    @property
-    def file_offset(self) -> int:
-        ...
-
-    @property
-    def prot(self) -> str:
-        ...
-
-    @property
-    def size(self) -> int:
-        ...
-
-    @property
-    def content(self) -> bytes:
-        ...
-
-    @content.setter
-    def content(self, new_content):
-        ...
-
 
 class Patch:
 
@@ -57,31 +28,21 @@ class Patch:
         ...
 
     @property
-    def patchee(self) -> int:
+    def size(self) -> int:
         ...
 
     @property
-    def inserted_jump(self) -> bytes:
+    def content(self) -> bytes:
         ...
+
+    @content.setter
+    def content(self, new_content):
+        ...
+
+class Chunk:
 
     @property
-    def original_instructions(self) -> bytes:
-        ...
-
-    @property
-    def append_jump_back(self) -> bool:
-        ...
-
-    @append_jump_back.setter
-    def append_jump_back(self, append_jump):
-        ...
-
-    @property
-    def append_original_instructions(self) -> bool:
-        ...
-
-    @append_original_instructions.setter
-    def append_original_instructions(self, append_orig):
+    def virtual_address(self) -> int:
         ...
 
     @property
@@ -95,22 +56,10 @@ class Patch:
     @content.setter
     def content(self, new_content):
         ...
+
 ```
 
-## Implementation Notes
 
-- Two choices:
 
-  - [ ] Lower layers propagate changes to higher layers in setters
 
-  - [x] Higher layers get the lower layers' status when packing
 
-### Chunk
-
-- `ChunkAllocator`: Manage and allocate chunks
-
-- `ChunkedSegment`: Segment consisting only of chunks, packed to concatenation of its chunks, stores a list of its chunks
-
-### Patch
-
-- `PatchChunk`: Packed to patch with optionally appended original instruction and jump back

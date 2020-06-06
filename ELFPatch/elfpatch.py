@@ -23,9 +23,12 @@ class ELFPatch(BasicELF):
             self.disassembler = PwnDisassembler(CS_ARCH_X86, CS_MODE_64)
 
 
-    def new_chunk(self, size=None, content=b"", flags=PT_R|PT_W|PT_X):
+    def new_chunk(self, size=None, content=b"", flags='rwx'):
         if size is None:
             size = len(content)
+
+        flags = self._translate_flags(flags)
+        print(flags)
 
         for chunk in self._chunks:
             #Do a try catch because Chunk manager creates exceptions when sizes or flags don't match
@@ -80,6 +83,18 @@ class ELFPatch(BasicELF):
         return new_patch
 
     #Override the original _update_raw_elf to now add the patches in the rawelf
+
+    def _translate_flags(self, flags):
+        new_flags = 0
+        if 'r' in flags or "R" in flags:
+            new_flags |= PT_R
+        if 'w' in flags or "W" in flags:
+            new_flags |= PT_W
+        if 'x' in flags or "X" in flags:
+            new_flags |= PT_X
+        
+        return new_flags
+
 
     def _update_raw_elf(self):
         #Call the original update to get the segments added

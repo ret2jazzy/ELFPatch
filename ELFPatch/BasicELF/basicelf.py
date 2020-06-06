@@ -63,6 +63,19 @@ class BasicELF:
                 physical_offset = address_offset + segment.p_offset
                 return physical_offset
 
+    #Weird issue with WSL is that it won't load overlapping segments even if they overlap only on the alignment (Linux kernel doesn't give a fuck if segments overlap, it just overwrites them)
+    #if you have one segment from 0x0000 to 0x2000 with a 0x4000 alignment, WSL won't load a 2nd segment at 0x3000
+    #Easy fix for that is to just change the alignment to 0x1000 (PAGE_SIZE) for every segment since that's what the kernel loads it as default
+ #    def fix_WSL(self):
+        # for phdr_entry in self.elf.phdr_table:
+            # if phdr_entry.p_type == PT_LOAD:
+                # phdr_entry.p_align = 0x1000
+
+        # entry2 = self.elf.phdr_table[3]
+        # entry_last = self.elf.phdr_table[-2]
+        # self.elf.phdr_table[3] = entry_last
+        # self.elf.phdr_table[-2] = entry2
+
     #Basically due to the weirdness of the loader and the kernel, the kernel believes the PHDR entry in memory would be at "FIRST_LOAD_SEGMENT + e_phoff", forwarding it to the loader, which is totally bizzare... Like what's the point of PHDR entry in the PHDR itself then?
     #Anyways, to cope with that, we try finding the smallest physical offset when loaded with the first segment itself would not conflict with any other segment's virtual addresses. It's a hacky approach but it works, so whatever...
     #Essentially we increase the size of the first loaded segment, so it loads the whole binary and then we change the PHDR and shit....
@@ -95,6 +108,12 @@ class BasicELF:
         self._fix_pdhr_entry(physical_offset, virtual_addr)
 
         # self._new_phdr_offset = physical_offset + 0x500 
+
+    #A function to find unused space between segments that can be used to hold the PHDR (should be > 0x500) 
+    def _find_empty_space():
+        all_load_segs = [X for X in self.elf.phdr_table if X.p_type == PT_LOAD].sort(key=lambda X:X.p_offset)
+        print(all_load_segs)
+
         
     
     #Basically look for the smallest no conflicting address pair which can all be loaded as a part of the first segment

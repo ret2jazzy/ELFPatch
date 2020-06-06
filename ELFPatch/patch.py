@@ -7,12 +7,25 @@ class Patch:
 
     def __init__(self, chunk, virtual_address, patched_jump, assembler=None, append_jump_back=True, append_original_instructions=True, original_instructions=b""):
         self.chunk = chunk #The chunk for the patch
-        self.virtual_address = virtual_address #The virtual address of where we are patching
+        self._virtual_address = virtual_address #The virtual address of where we are patching
         self.patched_jump = patched_jump #The jump instruction which will overwrite the instructions at the patch, Padded to NOPs to make sure we don't have invalid instructions
         self.append_jump_back = append_jump_back
         self.append_original_instructions = append_original_instructions
         self.original_instructions = original_instructions #The original instructions being overwritten
         self.assembler = assembler #The asembler for current architecture
+
+    #@ property's just to stay up to date with new python features
+    @property 
+    def content(self):
+        return self.chunk.content
+
+    @content.setter
+    def content(self, new_content):
+        self.update_patch(new_content)
+
+    @property
+    def virtual_address(self):
+        return self._virtual_address
 
     def update_patch(self, content=b""):
         #If we have to append the original instructions we overwrote
