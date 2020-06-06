@@ -84,6 +84,14 @@ class BasicELF:
     #UPDATE: Figured out a better way to do it without the overlapping segments byjust creating another LOAD segment at the end and aligning the FIRST_LOAD_SEGMENT + e_phoff with the new load segment
 
     def _fix_phdr(self):
+        #Just an optimization, Try to find empty space between segments to hold the phdr and move it there
+        size, physical_offset, virtual_addr, segment_ref = self._find_unused_space()
+        if size >= 0x300:
+            segment_ref.p_memsz += size
+            segment_ref.p_filesz += size
+            self._fix_pdhr_entry(physical_offset, virtual_addr, size=size)
+            return
+
         #If it's not a dynamic binary, then we don't have the loader issue. We can just add a new segment for PHDR and load it there
         if not self._is_dynamic():
             #The reason I'm adding a new segment so that other segments after it don't end up taking the mem of the phdr
@@ -91,7 +99,7 @@ class BasicELF:
             self._fix_pdhr_entry(new_phdr.physical_offset, new_phdr.virtual_address)
             return
 
-        physical_offset, virtual_addr = self._find_non_conflicting_address_pair_for_phdr()
+        #If large empty not available, then create a new segment (described in the comment above the function)
         #The hack commented out, figured out a better way
         # size_for_load_segment = physical_offset + 0x500
 
@@ -103,6 +111,8 @@ class BasicELF:
                 # seg.p_memsz = size_for_load_segment + 0x10
                 # break
 
+        physical_offset, virtual_addr = self._find_non_conflicting_address_pair_for_phdr()
+
         new_phdr = self.new_segment(size=0x1000, flags=PT_R|PT_W, virtual_address=virtual_addr, physical_off=physical_offset)
         
         self._fix_pdhr_entry(physical_offset, virtual_addr)
@@ -110,9 +120,33 @@ class BasicELF:
         # self._new_phdr_offset = physical_offset + 0x500 
 
     #A function to find unused space between segments that can be used to hold the PHDR (should be > 0x500) 
-    def _find_empty_space():
-        all_load_segs = [X for X in self.elf.phdr_table if X.p_type == PT_LOAD].sort(key=lambda X:X.p_offset)
-        print(all_load_segs)
+    def _find_unused_space(self):
+        all_load_segs = [X for X in self.elf.phdr_table if X.p_type == PT_LOAD]
+        first_seg = all_load_segs[0]
+        all_load_segs.sort(key=(lambda X:X.p_offset))
+
+        largest_unused_space, poff, vaddr, segment_ref = -1, -1, -1, None
+        #Essentially go through all the segments in sorted order and see if they have space in between (expects sane
+        #non overlapping segments
+        for idx in range(len(all_load_segs)-1):
+            current_segment = all_load_segs[idx]
+            current_segment_end_poff = current_segment.p_offset + current_segment.p_memsz
+            current_segment_end_vaddr = current_segment.p_vaddr + current_segment.p_memsz
+
+            next_segment = all_load_segs[idx+1]
+
+            current_unused_space = next_segment.p_offset - current_segment_end_poff
+
+            #Check if satisifes the check of being the correct offset away from the first load load segment 
+            #As explained in the comment above the _fix_phdr function
+            is_viable_for_phdr = (current_segment_end_poff - first_seg.p_offset) == (current_segment_end_vaddr - first_seg.p_vaddr)
+
+            if is_viable_for_phdr and (current_unused_space > largest_unused_space):
+                largest_unused_space = current_unused_space
+                poff = current_segment_end_poff
+                vaddr = current_segment_end_vaddr
+                segment_ref = current_segment
+        return largest_unused_space, poff, vaddr, segment_ref
 
         
     
@@ -166,7 +200,7 @@ class BasicELF:
         return False
 
     #Basically move the phdr to the bottom to make more space
-    def _fix_pdhr_entry(self, offset, virt_addr):
+    def _fix_pdhr_entry(self, offset, virt_addr, size=0x1000):
         self.elf.ehdr.e_phoff = offset
 
         for entry in self.elf.phdr_table:
@@ -177,8 +211,8 @@ class BasicELF:
                 entry.p_vaddr = virt_addr 
                 entry.p_paddr = virt_addr 
                 #Set the size to a large-ish number
-                entry.p_memsz = 0x1000
-                entry.p_filesz = 0x1000
+                entry.p_memsz = size
+                entry.p_filesz = size
 
                 break
 
