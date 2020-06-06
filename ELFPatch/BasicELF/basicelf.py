@@ -83,6 +83,8 @@ class BasicELF:
 
     #UPDATE: Figured out a better way to do it without the overlapping segments byjust creating another LOAD segment at the end and aligning the FIRST_LOAD_SEGMENT + e_phoff with the new load segment
 
+    #Basically we are trying to make the physical offset and the virtual address of EHDR match up so that e_phoff - FIRST_SEG.paddr  == vaddr_of_phoff - FIRST_SEG.vaddr
+
     def _fix_phdr(self):
         #Just an optimization, Try to find empty space between segments to hold the phdr and move it there
         size, physical_offset, virtual_addr, segment_ref = self._find_unused_space()
@@ -148,8 +150,6 @@ class BasicELF:
                 segment_ref = current_segment
         return largest_unused_space, poff, vaddr, segment_ref
 
-        
-    
     #Basically look for the smallest no conflicting address pair which can all be loaded as a part of the first segment
     def _find_non_conflicting_address_pair_for_phdr(self):
         all_load_segs = [X for X in self.elf.phdr_table if X.p_type == PT_LOAD]
