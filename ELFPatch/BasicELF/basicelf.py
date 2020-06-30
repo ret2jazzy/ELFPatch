@@ -86,7 +86,7 @@ class BasicELF:
     #Basically we are trying to make the physical offset and the virtual address of EHDR match up so that e_phoff - FIRST_SEG.paddr  == vaddr_of_phoff - FIRST_SEG.vaddr
 
     def _fix_phdr(self):
-        #Just an optimization, Try to find empty space between segments to hold the phdr and move it there
+        # Just an optimization, Try to find empty space between segments to hold the phdr and move it there
         size, physical_offset, virtual_addr, segment_ref = self._find_unused_space()
         if size >= 0x300:
             segment_ref.p_memsz += size
@@ -95,11 +95,12 @@ class BasicELF:
             return
 
         #If it's not a dynamic binary, then we don't have the loader issue. We can just add a new segment for PHDR and load it there
-        if not self._is_dynamic():
+        #Turns out LIBC_TLS also does the same thing as the kernel, which I explained above, so we can't do the special case for non dynamic libc
+        # if not self._is_dynamic():
             #The reason I'm adding a new segment so that other segments after it don't end up taking the mem of the phdr
-            new_phdr = self.new_segment(size=0x1000, flags=PT_R|PT_W)
-            self._fix_pdhr_entry(new_phdr.physical_offset, new_phdr.virtual_address)
-            return
+            # new_phdr = self.new_segment(size=0x1000, flags=PT_R|PT_W)
+            # self._fix_pdhr_entry(new_phdr.physical_offset, new_phdr.virtual_address)
+            # return
 
         #If large empty not available, then create a new segment (described in the comment above the function)
         #The hack commented out, figured out a better way

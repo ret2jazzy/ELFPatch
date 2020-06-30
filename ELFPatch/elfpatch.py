@@ -28,7 +28,6 @@ class ELFPatch(BasicELF):
             size = len(content)
 
         flags = self._translate_flags(flags)
-        print(flags)
 
         for chunk in self._chunks:
             #Do a try catch because Chunk manager creates exceptions when sizes or flags don't match
