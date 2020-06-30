@@ -28,7 +28,7 @@ class Chunk:
 
     @content.setter
     def content(self, new_content):
-        self.update_data(content)
+        self.update_data(new_content)
 
     def update_data(self, content):
         if len(content) > self._size:
