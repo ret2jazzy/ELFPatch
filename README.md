@@ -28,6 +28,10 @@ The process of adding a patch briefly boils down to the following:
 
 Currently only supports x86/64, but it shouldn't be hard to extend it to other architectures (only need to modify the assembler directives). I'll add other architectures when I get time.
 
+# Bugs/issues
+
+It's still in beta, so any issues and bugs are welcome.
+
 # Documentation
 
 Sorry, there's no documentation available yet. You can read the API below or look at the examples directory. For a little more complicated example, look at the debugging section of this [blogpost](http://blog.perfect.blue/Hack-A-Sat-CTF-2020-Launch-Link).
