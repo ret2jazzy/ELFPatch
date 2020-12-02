@@ -6,7 +6,7 @@ A library to manipulate and patch ELFs with dynamically sized patches.
 
 Mainly for CTFs and blackbox fuzzing. There have been times where I've wanted to patch ELFs but not enough space was available to do it inline, which is why this was created. 
 
-I've tried using multiple other ELF patching programs, but none of them fit my needs/worked on my usecases. 
+I've tried using few other ELF patching programs, but none of them fit my needs/worked on my usecases. 
 
 # How 
 
