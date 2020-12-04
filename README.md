@@ -22,6 +22,7 @@ The process of adding a patch briefly boils down to the following:
 - Moving the segment table to the end was a huge hassle because of the diversity in ELF loaders.
     - Some binaries loaded with ld.so but broke with kernel's loader and vice versa. 
     - It turns out some worked with overlapping segments which others absolutely hated it. 
+    - And a lot more weird quirks
 
 # Support
 
